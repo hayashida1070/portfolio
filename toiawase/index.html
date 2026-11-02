@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>問い合わせ自動化デモ</title>
+<style>
+  :root {
+    --bg: #f4f6f9;
+    --card: #ffffff;
+    --text: #1f2933;
+    --sub: #616e7c;
+    --line: #d9e0e7;
+    --main: #1f4e79;
+    --main-light: #e6eef6;
+    --form: #673ab7;
+    --form-light: #f0ebf8;
+    --sheet: #188038;
+    --sheet-light: #e6f4ea;
+    --mail: #c5221f;
+    --new: #fff4ce;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Yu Gothic UI", "Meiryo", "Hiragino Sans", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.6;
+  }
+  header { background: var(--main); color: #fff; padding: 16px 20px; }
+  header h1 { margin: 0; font-size: 20px; }
+  header p { margin: 4px 0 0; font-size: 13px; opacity: .9; }
+  main { max-width: 1200px; margin: 0 auto; padding: 20px 16px 48px; }
+  .flow {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 12px 16px; margin-bottom: 18px; font-size: 14px;
+  }
+  .flow span.step { background: var(--main-light); color: var(--main); padding: 4px 10px; border-radius: 99px; }
+  .flow span.arrow { color: var(--sub); }
+  .grid { display: grid; grid-template-columns: minmax(260px, 330px) 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .panel h2 { margin: 0; font-size: 15px; padding: 10px 14px; color: #fff; }
+  .panel .body { padding: 14px; }
+  .who { font-size: 12px; opacity: .9; font-weight: normal; margin-left: 6px; }
+
+  /* フォーム */
+  .form h2 { background: var(--form); }
+  .form .body { background: var(--form-light); }
+  .q { background: #fff; border-radius: 8px; padding: 12px; margin-bottom: 10px; border: 1px solid #e0d7ef; }
+  .q label.title { display: block; font-weight: bold; margin-bottom: 6px; font-size: 14px; }
+  .q label.title::after { content: " *"; color: var(--mail); }
+  input[type=text], input[type=email], textarea {
+    width: 100%; padding: 8px; border: none; border-bottom: 1px solid #bbb;
+    font-size: 15px; font-family: inherit; background: transparent;
+  }
+  textarea { min-height: 70px; border: 1px solid #ddd; border-radius: 4px; }
+  input:focus, textarea:focus { outline: none; border-bottom-color: var(--form); }
+  .radio { display: block; margin: 4px 0; font-size: 14px; }
+  .btn {
+    border: none; background: var(--form); color: #fff; padding: 9px 20px;
+    border-radius: 6px; font-size: 14px; cursor: pointer; font-family: inherit;
+  }
+  .btn.sub { background: #fff; color: var(--form); border: 1px solid var(--form); }
+  .btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  .err { color: var(--mail); font-size: 13px; min-height: 18px; margin-top: 6px; }
+
+  /* 右側 */
+  .tabs { display: flex; gap: 4px; padding: 10px 14px 0; background: #f8f9fa; border-bottom: 1px solid var(--line); }
+  .tabs button {
+    border: 1px solid var(--line); border-bottom: none; background: #eceff3; padding: 8px 14px;
+    border-radius: 8px 8px 0 0; font-size: 14px; cursor: pointer; font-family: inherit;
+  }
+  .tabs button.active { background: #fff; font-weight: bold; }
+  .badge { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 4px; border-radius: 99px; background: var(--mail); color: #fff; font-size: 11px; text-align: center; }
+  .badge:empty { display: none; }
+  .owner h2 { background: var(--sheet); }
+  .hidden { display: none; }
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { border: 1px solid #e2e3e3; padding: 6px 8px; text-align: left; white-space: nowrap; vertical-align: top; }
+  td.long { white-space: normal; min-width: 150px; }
+  th { background: var(--sheet-light); color: #0d652d; }
+  th.auto, td.auto { background: #fef7e0; }
+  th.auto { color: #8a5a00; }
+  tr.new td { animation: flash 2.5s ease-out; }
+  @keyframes flash { from { background: var(--new); } to { background: transparent; } }
+  td select { font-size: 13px; padding: 2px; font-family: inherit; }
+  .st-未対応 { color: var(--mail); font-weight: bold; }
+  .st-対応中 { color: #b06000; font-weight: bold; }
+  .st-完了 { color: var(--sheet); font-weight: bold; }
+  .legend { font-size: 12px; color: var(--sub); margin: 8px 0 0; }
+  .legend b { background: #fef7e0; padding: 0 4px; }
+
+  .mail-list { display: flex; flex-direction: column; gap: 10px; }
+  .mail { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: #fff; }
+  .mail.new { border-color: var(--mail); box-shadow: 0 0 0 2px #fce8e6; }
+  .mail .meta { font-size: 12px; color: var(--sub); }
+  .mail .subject { font-weight: bold; margin: 2px 0 6px; }
+  .mail pre { margin: 0; white-space: pre-wrap; font-family: inherit; font-size: 13px; background: #f8f9fa; padding: 8px; border-radius: 6px; }
+  .empty { color: var(--sub); font-size: 14px; }
+
+  .counts { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+  .counts div { background: #f8f9fa; border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; font-size: 13px; }
+  .counts b { font-size: 18px; margin-left: 4px; }
+
+  section.code { margin-top: 22px; }
+  section.code h2 { font-size: 17px; color: var(--main); border-left: 5px solid var(--main); padding-left: 10px; }
+  details { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; }
+  summary { cursor: pointer; font-weight: bold; }
+  pre.code { overflow-x: auto; background: #1e1e1e; color: #e6e6e6; padding: 14px; border-radius: 8px; font-size: 12.5px; line-height: 1.5; }
+  footer { text-align: center; color: var(--sub); font-size: 12px; padding: 0 16px 28px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>問い合わせ自動化デモ</h1>
+  <p>Googleフォーム × スプレッドシート × Gmail を Google Apps Script（GAS）でつなぐしくみを、ブラウザ上で体験できます（データはすべて架空です）</p>
+</header>
+
+<main>
+  <div class="flow">
+    <span class="step">① お客様がフォームを送信</span><span class="arrow">→</span>
+    <span class="step">② スプレッドシートに自動でたまる（受付番号・対応状況つき）</span><span class="arrow">→</span>
+    <span class="step">③ 担当者に通知メール</span><span class="arrow">→</span>
+    <span class="step">④ お客様に自動返信</span>
+  </div>
+
+  <div class="grid">
+    <!-- お客様側 -->
+    <div class="panel form">
+      <h2>お問い合わせフォーム<span class="who">（お客様が見る画面）</span></h2>
+      <div class="body">
+        <form id="form" novalidate>
+          <div class="q"><label class="title" for="name">お名前</label><input type="text" id="name" placeholder="回答を入力"></div>
+          <div class="q"><label class="title" for="mail">メールアドレス</label><input type="email" id="mail" placeholder="回答を入力"></div>
+          <div class="q">
+            <label class="title">お問い合わせの種類</label>
+            <div id="kinds"></div>
+          </div>
+          <div class="q"><label class="title" for="body">お問い合わせ内容</label><textarea id="body" placeholder="回答を入力"></textarea></div>
+          <div class="btns">
+            <button type="submit" class="btn">送信</button>
+            <button type="button" class="btn sub" id="sample">例文を入れる</button>
+          </div>
+          <p class="err" id="err"></p>
+        </form>
+      </div>
+    </div>
+
+    <!-- 担当者側 -->
+    <div class="panel owner">
+      <h2>担当者の画面<span class="who">（GASが自動で動いた結果）</span></h2>
+      <div class="tabs">
+        <button class="active" data-tab="sheet">スプレッドシート</button>
+        <button data-tab="inbox">担当者の受信箱<span class="badge" id="inboxBadge"></span></button>
+        <button data-tab="reply">お客様への自動返信<span class="badge" id="replyBadge"></span></button>
+      </div>
+      <div class="body">
+        <div id="tab-sheet">
+          <div class="counts">
+            <div>未対応<b id="c1">0</b></div>
+            <div>対応中<b id="c2">0</b></div>
+            <div>完了<b id="c3">0</b></div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>タイムスタンプ</th><th>お名前</th><th>メールアドレス</th><th>お問い合わせの種類</th><th>お問い合わせ内容</th>
+                  <th class="auto">受付番号</th><th class="auto">対応状況</th>
+                </tr>
+              </thead>
+              <tbody id="rows"></tbody>
+            </table>
+          </div>
+          <p class="legend"><b>黄色の列</b>はGASが自動で追加した列です。対応状況はプルダウンで変えられます。</p>
+        </div>
+        <div id="tab-inbox" class="hidden"><div class="mail-list" id="inbox"></div></div>
+        <div id="tab-reply" class="hidden"><div class="mail-list" id="reply"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <section class="code">
+    <h2>実際に使うGASのコード</h2>
+    <details>
+      <summary>コードを表示する（スプレッドシートの「拡張機能 → Apps Script」に貼って、setup を1回実行するだけ）</summary>
+      <pre class="code" id="code">/**
+ * 問い合わせフォームの自動化（Google Apps Script）
+ *
+ * できること
+ *   1. Googleフォームに問い合わせが届くと、スプレッドシートに自動でたまる
+ *   2. 受付番号と「対応状況」の欄を自動でつける
+ *   3. 担当者に通知メールを送る
+ *   4. お客様に「受け付けました」の自動返信メールを送る
+ *
+ * 使い方
+ *   新しいスプレッドシートを作り、「拡張機能」→「Apps Script」にこのコードを貼る。
+ *   下の設定（NOTIFY_TO など）を書き換えて、関数「setup」を1回だけ実行する。
+ *   フォームとトリガー（自動で動くしくみ）が作られる。
+ */
+
+// ===== 設定（ここを書き換える） =====
+const NOTIFY_TO = &#39;tantou@example.com&#39;;       // 通知を受け取る担当者のメールアドレス
+const SHOP_NAME = &#39;サンプル工務店&#39;;            // 自動返信メールに出す名前
+const FORM_TITLE = &#39;お問い合わせフォーム&#39;;
+const KINDS = [&#39;見積りの依頼&#39;, &#39;工事のご相談&#39;, &#39;アフターサービス&#39;, &#39;その他&#39;];
+const SEND_AUTO_REPLY = true;                  // お客様への自動返信を送るなら true
+
+// 回答シートで使う見出し（フォームの質問名と同じにする）
+const Q_NAME = &#39;お名前&#39;;
+const Q_MAIL = &#39;メールアドレス&#39;;
+const Q_KIND = &#39;お問い合わせの種類&#39;;
+const Q_BODY = &#39;お問い合わせ内容&#39;;
+const COL_NO = &#39;受付番号&#39;;
+const COL_STATUS = &#39;対応状況&#39;;
+
+/**
+ * 最初に1回だけ実行する。フォームを作ってこのスプレッドシートにつなぎ、
+ * 回答が届いたときに onFormSubmit が動くように設定する。
+ */
+function setup() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  const form = FormApp.create(FORM_TITLE)
+    .setDescription(SHOP_NAME + &#39;へのお問い合わせはこちらから。2営業日以内にご連絡します。&#39;)
+    .setCollectEmail(false);
+  form.addTextItem().setTitle(Q_NAME).setRequired(true);
+  form.addTextItem().setTitle(Q_MAIL).setRequired(true)
+    .setValidation(FormApp.createTextValidation().requireTextIsEmail().build());
+  form.addMultipleChoiceItem().setTitle(Q_KIND).setChoiceValues(KINDS).setRequired(true);
+  form.addParagraphTextItem().setTitle(Q_BODY).setRequired(true);
+  form.setDestination(FormApp.DestinationType.SPREADSHEET, ss.getId());
+
+  // 同じトリガーが二重にできないよう、古いものを消してから作る
+  ScriptApp.getProjectTriggers()
+    .filter(t =&gt; t.getHandlerFunction() === &#39;onFormSubmit&#39;)
+    .forEach(t =&gt; ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger(&#39;onFormSubmit&#39;).forSpreadsheet(ss).onFormSubmit().create();
+
+  Logger.log(&#39;フォームのURL（お客様に案内する）: &#39; + form.getPublishedUrl());
+  Logger.log(&#39;フォームの編集URL: &#39; + form.getEditUrl());
+}
+
+/**
+ * フォームに回答が届くたびに自動で動く。
+ */
+function onFormSubmit(e) {
+  const sheet = e.range.getSheet();
+  const row = e.range.getRow();
+  const answer = name =&gt; (e.namedValues[name] || [&#39;&#39;])[0];
+
+  // 受付番号と対応状況の列がなければ作る
+  const noCol = ensureColumn_(sheet, COL_NO);
+  const statusCol = ensureColumn_(sheet, COL_STATUS);
+
+  const receiptNo = &#39;Q-&#39; + (&#39;0000&#39; + (row - 1)).slice(-4);
+  sheet.getRange(row, noCol).setValue(receiptNo);
+  const status = sheet.getRange(row, statusCol);
+  status.setValue(&#39;未対応&#39;);
+  status.setDataValidation(SpreadsheetApp.newDataValidation()
+    .requireValueInList([&#39;未対応&#39;, &#39;対応中&#39;, &#39;完了&#39;], true).build());
+
+  const name = answer(Q_NAME);
+  const mail = answer(Q_MAIL);
+  const kind = answer(Q_KIND);
+  const body = answer(Q_BODY);
+
+  // 担当者への通知
+  MailApp.sendEmail({
+    to: NOTIFY_TO,
+    subject: &#39;【問い合わせ &#39; + receiptNo + &#39;】&#39; + kind + &#39;（&#39; + name + &#39; 様）&#39;,
+    body: [
+      &#39;新しい問い合わせが届きました。&#39;,
+      &#39;&#39;,
+      &#39;受付番号: &#39; + receiptNo,
+      &#39;お名前: &#39; + name,
+      &#39;メールアドレス: &#39; + mail,
+      &#39;種類: &#39; + kind,
+      &#39;&#39;,
+      &#39;内容:&#39;,
+      body,
+      &#39;&#39;,
+      &#39;一覧: &#39; + SpreadsheetApp.getActiveSpreadsheet().getUrl(),
+    ].join(&#39;\n&#39;),
+  });
+
+  // お客様への自動返信
+  if (SEND_AUTO_REPLY &amp;&amp; mail) {
+    MailApp.sendEmail({
+      to: mail,
+      subject: &#39;【&#39; + SHOP_NAME + &#39;】お問い合わせを受け付けました（&#39; + receiptNo + &#39;）&#39;,
+      body: [
+        name + &#39; 様&#39;,
+        &#39;&#39;,
+        &#39;お問い合わせいただき、ありがとうございます。&#39;,
+        &#39;以下の内容で受け付けました。2営業日以内に担当者よりご連絡します。&#39;,
+        &#39;&#39;,
+        &#39;受付番号: &#39; + receiptNo,
+        &#39;種類: &#39; + kind,
+        &#39;内容:&#39;,
+        body,
+        &#39;&#39;,
+        &#39;※このメールは自動で送信しています。&#39;,
+        SHOP_NAME,
+      ].join(&#39;\n&#39;),
+    });
+  }
+}
+
+/** 見出し行に name の列がなければ右端に足し、その列番号を返す */
+function ensureColumn_(sheet, name) {
+  const lastCol = sheet.getLastColumn();
+  const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  const idx = headers.indexOf(name);
+  if (idx &gt;= 0) return idx + 1;
+  sheet.getRange(1, lastCol + 1).setValue(name);
+  return lastCol + 1;
+}</pre>
+    </details>
+  </section>
+</main>
+
+<footer>このページはしくみを説明するためのデモです。送信した内容はどこにも送られず、ページを閉じると消えます。</footer>
+
+<script>
+const KINDS = ['見積りの依頼', '工事のご相談', 'アフターサービス', 'その他'];
+const SHOP_NAME = 'サンプル工務店';
+const SAMPLES = [
+  { name: '山田 太郎', mail: 'yamada@example.com', kind: '見積りの依頼', body: '浴室のリフォームを考えています。ユニットバスの交換でおおよその費用を知りたいです。' },
+  { name: '佐藤 花子', mail: 'sato@example.com', kind: 'アフターサービス', body: '昨年交換したキッチンの水栓から少し水漏れがあります。点検をお願いできますか。' },
+  { name: '鈴木 一郎', mail: 'suzuki@example.com', kind: '工事のご相談', body: '階段に手すりを付けたいのですが、工事は1日で終わりますか。' }
+];
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const rows = [];
+const inbox = [];
+const reply = [];
+let sampleIndex = 0;
+
+$('kinds').innerHTML = KINDS.map((k, i) =>
+  `<label class="radio"><input type="radio" name="kind" value="${esc(k)}"${i === 0 ? ' checked' : ''}> ${esc(k)}</label>`).join('');
+
+function now() {
+  const d = new Date();
+  const p = n => String(n).padStart(2, '0');
+  return `${p(d.getMonth() + 1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+// ===== GASの onFormSubmit と同じ流れ =====
+function onFormSubmit(answer) {
+  const no = 'Q-' + String(rows.length + 1).padStart(4, '0');
+  rows.push({ time: now(), ...answer, no, status: '未対応', isNew: true });
+
+  inbox.unshift({
+    isNew: true, time: now(), to: 'tantou@example.com（担当者）',
+    subject: `【問い合わせ ${no}】${answer.kind}（${answer.name} 様）`,
+    body: ['新しい問い合わせが届きました。', '', '受付番号: ' + no, 'お名前: ' + answer.name, 'メールアドレス: ' + answer.mail,
+           '種類: ' + answer.kind, '', '内容:', answer.body, '', '一覧: （スプレッドシートのURL）'].join('\n')
+  });
+
+  reply.unshift({
+    isNew: true, time: now(), to: answer.mail + '（お客様）',
+    subject: `【${SHOP_NAME}】お問い合わせを受け付けました（${no}）`,
+    body: [answer.name + ' 様', '', 'お問い合わせいただき、ありがとうございます。', '以下の内容で受け付けました。2営業日以内に担当者よりご連絡します。', '',
+           '受付番号: ' + no, '種類: ' + answer.kind, '内容:', answer.body, '', '※このメールは自動で送信しています。', SHOP_NAME].join('\n')
+  });
+  render();
+}
+
+function render() {
+  $('rows').innerHTML = rows.map((r, i) => `
+    <tr class="${r.isNew ? 'new' : ''}">
+      <td>${esc(r.time)}</td><td>${esc(r.name)}</td><td>${esc(r.mail)}</td><td>${esc(r.kind)}</td>
+      <td class="long">${esc(r.body)}</td>
+      <td class="auto">${esc(r.no)}</td>
+      <td class="auto"><select data-i="${i}" class="st-${r.status}">
+        ${['未対応', '対応中', '完了'].map(s => `<option${s === r.status ? ' selected' : ''}>${s}</option>`).join('')}
+      </select></td>
+    </tr>`).join('') || '<tr><td colspan="7" class="empty">まだ問い合わせはありません。左のフォームから送信してみてください。</td></tr>';
+
+  const count = s => rows.filter(r => r.status === s).length;
+  $('c1').textContent = count('未対応');
+  $('c2').textContent = count('対応中');
+  $('c3').textContent = count('完了');
+
+  const mailHtml = list => list.map(m => `
+    <div class="mail${m.isNew ? ' new' : ''}">
+      <div class="meta">宛先：${esc(m.to)}　${esc(m.time)}</div>
+      <div class="subject">${esc(m.subject)}</div>
+      <pre>${esc(m.body)}</pre>
+    </div>`).join('') || '<p class="empty">まだメールはありません。</p>';
+  $('inbox').innerHTML = mailHtml(inbox);
+  $('reply').innerHTML = mailHtml(reply);
+  $('inboxBadge').textContent = inbox.filter(m => m.isNew).length || '';
+  $('replyBadge').textContent = reply.filter(m => m.isNew).length || '';
+  rows.forEach(r => { r.isNew = false; });
+}
+
+$('rows').addEventListener('change', e => {
+  const i = e.target.dataset.i;
+  if (i === undefined) return;
+  rows[i].status = e.target.value;
+  render();
+});
+
+document.querySelectorAll('.tabs button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('active', b === btn));
+    ['sheet', 'inbox', 'reply'].forEach(t => $('tab-' + t).classList.toggle('hidden', t !== btn.dataset.tab));
+    const list = btn.dataset.tab === 'inbox' ? inbox : btn.dataset.tab === 'reply' ? reply : null;
+    if (list) setTimeout(() => { list.forEach(m => { m.isNew = false; }); }, 0);
+    if (list) { $('inboxBadge').textContent = btn.dataset.tab === 'inbox' ? '' : $('inboxBadge').textContent;
+                $('replyBadge').textContent = btn.dataset.tab === 'reply' ? '' : $('replyBadge').textContent; }
+  });
+});
+
+$('sample').addEventListener('click', () => {
+  const s = SAMPLES[sampleIndex++ % SAMPLES.length];
+  $('name').value = s.name;
+  $('mail').value = s.mail;
+  document.querySelector(`input[name=kind][value="${s.kind}"]`).checked = true;
+  $('body').value = s.body;
+  $('err').textContent = '';
+});
+
+$('form').addEventListener('submit', e => {
+  e.preventDefault();
+  const answer = {
+    name: $('name').value.trim(),
+    mail: $('mail').value.trim(),
+    kind: document.querySelector('input[name=kind]:checked').value,
+    body: $('body').value.trim()
+  };
+  if (!answer.name || !answer.mail || !answer.body) { $('err').textContent = 'すべての項目を入力してください。'; return; }
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(answer.mail)) { $('err').textContent = 'メールアドレスの形式が正しくありません。'; return; }
+  $('err').textContent = '';
+  onFormSubmit(answer);
+  e.target.reset();
+  document.querySelector('input[name=kind]').checked = true;
+});
+
+render();
+</script>
+</body>
+</html>
