@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>業務ツール作品集</title>
+<meta name="description" content="ブラウザで開くだけで使える、小さな業務ツールの作品集です。">
+<style>
+  :root {
+    --bg: #f4f6f9;
+    --card: #ffffff;
+    --text: #1f2933;
+    --sub: #616e7c;
+    --line: #d9e0e7;
+    --main: #1f4e79;
+    --main-light: #e6eef6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Yu Gothic UI", "Meiryo", "Hiragino Sans", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+  }
+  header {
+    background: var(--main);
+    color: #fff;
+    padding: 40px 20px 32px;
+    text-align: center;
+  }
+  header h1 { margin: 0; font-size: 26px; }
+  header p { margin: 8px 0 0; opacity: .9; }
+  main { max-width: 900px; margin: 0 auto; padding: 28px 16px 48px; }
+  h2 { font-size: 19px; color: var(--main); border-left: 5px solid var(--main); padding-left: 10px; margin: 28px 0 14px; }
+  .about {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px 20px;
+  }
+  .about ul { margin: 8px 0 0; padding-left: 1.3em; }
+  .works { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+  .work {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+  }
+  .work h3 { margin: 0 0 6px; font-size: 17px; }
+  .work p { margin: 0 0 10px; color: var(--sub); font-size: 14px; }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .tags span { background: var(--main-light); color: var(--main); font-size: 12px; padding: 2px 10px; border-radius: 99px; }
+  .work a {
+    margin-top: auto;
+    display: inline-block;
+    text-align: center;
+    background: var(--main);
+    color: #fff;
+    text-decoration: none;
+    padding: 9px 14px;
+    border-radius: 6px;
+    font-size: 14px;
+  }
+  .work a:hover { opacity: .9; }
+  footer { text-align: center; color: var(--sub); font-size: 12px; padding: 0 16px 32px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>業務ツール作品集</h1>
+  <p>ブラウザで開くだけで使える、小さな業務ツールをつくっています</p>
+</header>
+
+<main>
+  <h2>できること</h2>
+  <div class="about">
+    紙や手計算、Excelの手入力で時間がかかっている作業を、かんたんな道具にして手間とミスを減らします。
+    <ul>
+      <li>Excel・Googleスプレッドシートの関数、集計表づくり</li>
+      <li>ブラウザで動く業務ツール（インストール不要・ダブルクリックで開ける）</li>
+      <li>CSVなどのデータ整理、ホームページの小さな修正</li>
+    </ul>
+  </div>
+
+  <h2>作品</h2>
+  <div class="works">
+    <div class="work">
+      <h3>見積計算ツール</h3>
+      <p>品目を選んで数量を入れるだけで、小計・消費税・合計を自動で計算。見積書の印刷・PDF保存までできます。</p>
+      <div class="tags"><span>見積書</span><span>自動計算</span><span>印刷・PDF</span><span>CSV読み込み</span></div>
+      <a href="mitsumori/index.html">開いて試す</a>
+    </div>
+  </div>
+</main>
+
+<footer>
+  掲載している作品のデータは、すべて架空のサンプルです。
+</footer>
+
+</body>
+</html>

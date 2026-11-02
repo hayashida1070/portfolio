@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>見積計算ツール</title>
+<style>
+  :root {
+    --bg: #f4f6f9;
+    --card: #ffffff;
+    --text: #1f2933;
+    --sub: #616e7c;
+    --line: #d9e0e7;
+    --main: #1f4e79;
+    --main-light: #e6eef6;
+    --danger: #b42318;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Yu Gothic UI", "Meiryo", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 15px;
+  }
+  header {
+    background: var(--main);
+    color: #fff;
+    padding: 14px 20px;
+  }
+  header h1 { margin: 0; font-size: 20px; }
+  header p { margin: 4px 0 0; font-size: 13px; opacity: .85; }
+  nav {
+    display: flex;
+    gap: 4px;
+    padding: 12px 20px 0;
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+  nav button {
+    border: 1px solid var(--line);
+    border-bottom: none;
+    background: #e9edf2;
+    padding: 10px 18px;
+    border-radius: 8px 8px 0 0;
+    font-size: 15px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  nav button.active { background: var(--card); font-weight: bold; color: var(--main); }
+  main { max-width: 1000px; margin: 0 auto; padding: 0 20px 40px; }
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 0 8px 8px 8px;
+    padding: 20px;
+  }
+  .hidden { display: none; }
+  h2 { font-size: 17px; margin: 0 0 12px; color: var(--main); }
+  .help { color: var(--sub); font-size: 13px; margin: 0 0 14px; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+  label { display: block; font-size: 13px; color: var(--sub); margin-bottom: 4px; }
+  input, select, textarea {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    font-size: 15px;
+    font-family: inherit;
+  }
+  textarea { min-height: 60px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border-bottom: 1px solid var(--line); padding: 6px; text-align: left; vertical-align: middle; }
+  th { background: var(--main-light); font-size: 13px; }
+  td.num, th.num { text-align: right; }
+  .btn {
+    border: none;
+    background: var(--main);
+    color: #fff;
+    padding: 9px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .btn.sub { background: #fff; color: var(--main); border: 1px solid var(--main); }
+  .btn.del { background: transparent; color: var(--danger); padding: 4px 8px; font-size: 18px; }
+  .btns { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+  .totals { margin-left: auto; width: 320px; max-width: 100%; margin-top: 16px; }
+  .totals div { display: flex; justify-content: space-between; padding: 6px 4px; border-bottom: 1px solid var(--line); }
+  .totals .grand { font-size: 20px; font-weight: bold; color: var(--main); border-bottom: 2px solid var(--main); }
+  .msg { color: var(--main); font-size: 13px; min-height: 18px; }
+  .table-wrap { overflow-x: auto; }
+  #estimateTable input, #estimateTable select { min-width: 70px; }
+
+  /* 印刷用の見積書（画面では隠す） */
+  #printArea { display: none; }
+  @media print {
+    body { background: #fff; font-size: 12px; }
+    header, nav, main { display: none; }
+    #printArea { display: block; padding: 10mm; }
+    .p-title { text-align: center; font-size: 26px; letter-spacing: .5em; border-bottom: 3px double #000; padding-bottom: 6px; margin-bottom: 18px; }
+    .p-head { display: flex; justify-content: space-between; gap: 20px; margin-bottom: 18px; }
+    .p-to { font-size: 18px; border-bottom: 1px solid #000; padding-bottom: 4px; min-width: 60%; }
+    .p-right { text-align: right; font-size: 12px; line-height: 1.7; }
+    .p-total { font-size: 20px; border: 2px solid #000; padding: 8px 14px; display: inline-block; margin: 6px 0 16px; }
+    #printArea table th, #printArea table td { border: 1px solid #000; padding: 5px; }
+    #printArea table th { background: #eee; }
+    .p-sum { width: 50%; margin-left: auto; margin-top: 10px; }
+    .p-note { margin-top: 18px; border: 1px solid #000; padding: 8px; min-height: 50px; white-space: pre-wrap; }
+  }
+  @media (max-width: 600px) {
+    nav, main { padding-left: 16px; padding-right: 16px; }
+    .panel { padding: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>見積計算ツール</h1>
+  <p>品目を選んで数量を入れるだけで、小計・消費税・合計を自動で計算します（データはすべてサンプルです）</p>
+</header>
+
+<nav>
+  <button class="tab active" data-tab="estimate">見積書をつくる</button>
+  <button class="tab" data-tab="items">品目表</button>
+  <button class="tab" data-tab="settings">自社情報・設定</button>
+</nav>
+
+<main>
+  <!-- 見積書 -->
+  <section class="panel" id="tab-estimate">
+    <h2>見積書をつくる</h2>
+    <p class="help">品目を選ぶと単価と単位が自動で入ります。入力内容はこのブラウザに自動保存されます。</p>
+    <div class="grid">
+      <div><label>宛先（お客様名）</label><input id="customer" placeholder="例：山田 太郎 様"></div>
+      <div><label>件名</label><input id="subject" placeholder="例：浴室リフォーム工事"></div>
+      <div><label>見積番号</label><input id="estNo"></div>
+      <div><label>見積日</label><input id="estDate" type="date"></div>
+      <div><label>有効期限</label><input id="validity" placeholder="例：発行日より30日"></div>
+    </div>
+
+    <div class="table-wrap">
+      <table id="estimateTable">
+        <thead>
+          <tr>
+            <th style="width:34%">品目</th>
+            <th class="num" style="width:12%">数量</th>
+            <th style="width:10%">単位</th>
+            <th class="num" style="width:16%">単価（円）</th>
+            <th class="num" style="width:18%">金額（円）</th>
+            <th style="width:6%"></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="btns">
+      <button class="btn sub" id="addRow">＋ 行を追加</button>
+    </div>
+
+    <div class="totals">
+      <div><span>小計</span><span id="subtotal">0円</span></div>
+      <div><span id="taxLabel">消費税（10%）</span><span id="tax">0円</span></div>
+      <div class="grand"><span>合計</span><span id="grand">0円</span></div>
+    </div>
+
+    <div style="margin-top:16px">
+      <label>備考</label>
+      <textarea id="note" placeholder="例：既存設備の撤去費用を含みます。"></textarea>
+    </div>
+
+    <div class="btns">
+      <button class="btn" id="printBtn">印刷・PDFで保存</button>
+      <button class="btn sub" id="exportEstimate">明細をCSVで書き出す</button>
+      <button class="btn sub" id="clearEstimate">新しい見積書にする</button>
+    </div>
+    <p class="msg" id="estimateMsg"></p>
+  </section>
+
+  <!-- 品目表 -->
+  <section class="panel hidden" id="tab-items">
+    <h2>品目表</h2>
+    <p class="help">見積書で選べる品目の一覧です。単価を変えると、これから選ぶ品目に反映されます。ExcelでCSVを作って読み込むこともできます（列：品目,単位,単価）。</p>
+    <div class="table-wrap">
+      <table id="itemsTable">
+        <thead>
+          <tr>
+            <th style="width:50%">品目</th>
+            <th style="width:15%">単位</th>
+            <th class="num" style="width:25%">単価（円）</th>
+            <th style="width:10%"></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="btns">
+      <button class="btn sub" id="addItem">＋ 品目を追加</button>
+      <button class="btn sub" id="exportItems">CSVで書き出す</button>
+      <label class="btn sub" style="margin:0;color:var(--main);font-size:14px">CSVを読み込む<input type="file" id="importItems" accept=".csv" hidden></label>
+      <button class="btn sub" id="resetItems">サンプルに戻す</button>
+    </div>
+    <p class="msg" id="itemsMsg"></p>
+  </section>
+
+  <!-- 設定 -->
+  <section class="panel hidden" id="tab-settings">
+    <h2>自社情報・設定</h2>
+    <p class="help">印刷する見積書の右上に出る情報です。</p>
+    <div class="grid">
+      <div><label>会社名</label><input id="coName"></div>
+      <div><label>住所</label><input id="coAddress"></div>
+      <div><label>電話番号</label><input id="coTel"></div>
+      <div><label>担当者</label><input id="coPerson"></div>
+      <div><label>消費税率（%）</label><input id="taxRate" type="number" min="0" step="1"></div>
+      <div>
+        <label>消費税の端数</label>
+        <select id="rounding">
+          <option value="floor">切り捨て</option>
+          <option value="round">四捨五入</option>
+          <option value="ceil">切り上げ</option>
+        </select>
+      </div>
+    </div>
+    <p class="msg" id="settingsMsg"></p>
+  </section>
+</main>
+
+<!-- 印刷用 -->
+<div id="printArea"></div>
+
+<script>
+// ---------- サンプルデータ（すべて架空） ----------
+const SAMPLE_ITEMS = [
+  { name: "現地調査・採寸", unit: "式", price: 5000 },
+  { name: "既存設備撤去・処分", unit: "式", price: 35000 },
+  { name: "ユニットバス（1616サイズ）", unit: "台", price: 480000 },
+  { name: "ユニットバス組立工事", unit: "式", price: 90000 },
+  { name: "洗面化粧台（W750）", unit: "台", price: 85000 },
+  { name: "システムキッチン（I型2550）", unit: "台", price: 620000 },
+  { name: "キッチン取付工事", unit: "式", price: 75000 },
+  { name: "給排水配管工事", unit: "式", price: 60000 },
+  { name: "電気配線工事", unit: "式", price: 40000 },
+  { name: "フローリング張替え", unit: "㎡", price: 9500 },
+  { name: "クロス張替え（壁・天井）", unit: "㎡", price: 1200 },
+  { name: "クッションフロア張替え", unit: "㎡", price: 3500 },
+  { name: "内装用ドア交換", unit: "枚", price: 65000 },
+  { name: "手すり取付", unit: "本", price: 15000 },
+  { name: "養生・清掃費", unit: "式", price: 15000 },
+  { name: "諸経費", unit: "式", price: 30000 }
+];
+const SAMPLE_SETTINGS = {
+  coName: "サンプル工務店（架空）",
+  coAddress: "〇〇県〇〇市〇〇町1-2-3",
+  coTel: "000-0000-0000",
+  coPerson: "見本 一郎",
+  taxRate: 10,
+  rounding: "floor"
+};
+
+// ---------- 保存と読み込み ----------
+function load(key, fallback) {
+  try {
+    const v = localStorage.getItem(key);
+    return v ? JSON.parse(v) : fallback;
+  } catch (e) { return fallback; }
+}
+function save(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
+}
+
+let items = load("mitsumori.items", SAMPLE_ITEMS.map(x => ({ ...x })));
+let settings = load("mitsumori.settings", { ...SAMPLE_SETTINGS });
+let estimate = load("mitsumori.estimate", null) || newEstimate();
+
+function newEstimate() {
+  const d = new Date();
+  const ymd = d.getFullYear() + String(d.getMonth() + 1).padStart(2, "0") + String(d.getDate()).padStart(2, "0");
+  return {
+    customer: "", subject: "",
+    estNo: "M-" + ymd + "-01",
+    estDate: d.toISOString().slice(0, 10),
+    validity: "発行日より30日",
+    note: "",
+    rows: [{ name: "", qty: 1, unit: "", price: 0 }]
+  };
+}
+
+// ---------- 共通 ----------
+const $ = id => document.getElementById(id);
+const yen = n => Math.round(n).toLocaleString("ja-JP");
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+function flash(id, text) {
+  $(id).textContent = text;
+  setTimeout(() => { if ($(id).textContent === text) $(id).textContent = ""; }, 3000);
+}
+
+// ---------- タブ ----------
+document.querySelectorAll(".tab").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(b => b.classList.toggle("active", b === btn));
+    ["estimate", "items", "settings"].forEach(t => $("tab-" + t).classList.toggle("hidden", t !== btn.dataset.tab));
+    if (btn.dataset.tab === "estimate") renderEstimate();
+  });
+});
+
+// ---------- 計算 ----------
+function calc() {
+  const subtotal = estimate.rows.reduce((s, r) => s + (Number(r.qty) || 0) * (Number(r.price) || 0), 0);
+  const rate = Number(settings.taxRate) || 0;
+  const tax = Math[settings.rounding || "floor"](subtotal * rate / 100);
+  return { subtotal, tax, grand: subtotal + tax, rate };
+}
+
+// ---------- 見積書 ----------
+const headFields = ["customer", "subject", "estNo", "estDate", "validity", "note"];
+
+function renderEstimate() {
+  headFields.forEach(f => { $(f).value = estimate[f] || ""; });
+  const options = '<option value="">（品目を選ぶ）</option>' +
+    items.map(it => `<option value="${esc(it.name)}">${esc(it.name)}</option>`).join("");
+  const tbody = $("estimateTable").querySelector("tbody");
+  tbody.innerHTML = estimate.rows.map((r, i) => `
+    <tr data-i="${i}">
+      <td><select data-f="name">${options}${r.name && !items.some(it => it.name === r.name) ? `<option value="${esc(r.name)}">${esc(r.name)}</option>` : ""}</select></td>
+      <td><input data-f="qty" type="number" min="0" step="any" value="${esc(r.qty)}" style="text-align:right"></td>
+      <td><input data-f="unit" value="${esc(r.unit)}"></td>
+      <td><input data-f="price" type="number" min="0" step="1" value="${esc(r.price)}" style="text-align:right"></td>
+      <td class="num" data-amount>${yen((Number(r.qty) || 0) * (Number(r.price) || 0))}</td>
+      <td><button class="btn del" title="この行を消す">×</button></td>
+    </tr>`).join("");
+  tbody.querySelectorAll("tr").forEach(tr => {
+    tr.querySelector('[data-f="name"]').value = estimate.rows[tr.dataset.i].name;
+  });
+  updateTotals();
+}
+
+function updateTotals() {
+  const { subtotal, tax, grand, rate } = calc();
+  $("subtotal").textContent = yen(subtotal) + "円";
+  $("taxLabel").textContent = `消費税（${rate}%）`;
+  $("tax").textContent = yen(tax) + "円";
+  $("grand").textContent = yen(grand) + "円";
+  save("mitsumori.estimate", estimate);
+}
+
+headFields.forEach(f => $(f).addEventListener("input", () => { estimate[f] = $(f).value; save("mitsumori.estimate", estimate); }));
+
+$("estimateTable").addEventListener("input", e => {
+  const tr = e.target.closest("tr");
+  const f = e.target.dataset.f;
+  if (!tr || !f) return;
+  const row = estimate.rows[tr.dataset.i];
+  row[f] = e.target.value;
+  if (f === "name") {
+    const it = items.find(x => x.name === e.target.value);
+    if (it) {
+      row.unit = it.unit;
+      row.price = it.price;
+      tr.querySelector('[data-f="unit"]').value = it.unit;
+      tr.querySelector('[data-f="price"]').value = it.price;
+    }
+  }
+  tr.querySelector("[data-amount]").textContent = yen((Number(row.qty) || 0) * (Number(row.price) || 0));
+  updateTotals();
+});
+$("estimateTable").addEventListener("click", e => {
+  if (!e.target.classList.contains("del")) return;
+  estimate.rows.splice(e.target.closest("tr").dataset.i, 1);
+  if (estimate.rows.length === 0) estimate.rows.push({ name: "", qty: 1, unit: "", price: 0 });
+  renderEstimate();
+});
+$("addRow").addEventListener("click", () => {
+  estimate.rows.push({ name: "", qty: 1, unit: "", price: 0 });
+  renderEstimate();
+});
+$("clearEstimate").addEventListener("click", () => {
+  if (!confirm("今の見積書を消して、新しい見積書にしますか？")) return;
+  estimate = newEstimate();
+  renderEstimate();
+  flash("estimateMsg", "新しい見積書にしました。");
+});
+
+// ---------- 印刷 ----------
+$("printBtn").addEventListener("click", () => {
+  const { subtotal, tax, grand, rate } = calc();
+  const rows = estimate.rows.filter(r => r.name || Number(r.price));
+  const d = estimate.estDate ? new Date(estimate.estDate + "T00:00") : null;
+  const dateText = d ? `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日` : "";
+  $("printArea").innerHTML = `
+    <div class="p-title">御見積書</div>
+    <div class="p-head">
+      <div style="flex:1">
+        <div class="p-to">${esc(estimate.customer) || "&nbsp;"}</div>
+        <p>件名：${esc(estimate.subject)}</p>
+        <p>下記のとおりお見積り申し上げます。</p>
+        <div class="p-total">御見積金額　¥${yen(grand)}-（税込）</div>
+        <p>有効期限：${esc(estimate.validity)}</p>
+      </div>
+      <div class="p-right">
+        見積番号：${esc(estimate.estNo)}<br>
+        見積日：${dateText}<br><br>
+        <strong>${esc(settings.coName)}</strong><br>
+        ${esc(settings.coAddress)}<br>
+        TEL：${esc(settings.coTel)}<br>
+        担当：${esc(settings.coPerson)}
+      </div>
+    </div>
+    <table>
+      <thead><tr><th>品目</th><th class="num">数量</th><th>単位</th><th class="num">単価</th><th class="num">金額</th></tr></thead>
+      <tbody>
+        ${rows.map(r => `<tr><td>${esc(r.name)}</td><td class="num">${esc(r.qty)}</td><td>${esc(r.unit)}</td><td class="num">${yen(Number(r.price) || 0)}</td><td class="num">${yen((Number(r.qty) || 0) * (Number(r.price) || 0))}</td></tr>`).join("")}
+      </tbody>
+    </table>
+    <table class="p-sum">
+      <tr><th>小計</th><td class="num">¥${yen(subtotal)}</td></tr>
+      <tr><th>消費税（${rate}%）</th><td class="num">¥${yen(tax)}</td></tr>
+      <tr><th>合計</th><td class="num"><strong>¥${yen(grand)}</strong></td></tr>
+    </table>
+    <div class="p-note">備考：${esc(estimate.note)}</div>`;
+  window.print();
+});
+
+// ---------- CSV ----------
+function toCsv(rows) {
+  return "﻿" + rows.map(r => r.map(v => {
+    const s = String(v ?? "");
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }).join(",")).join("\r\n");
+}
+function download(filename, text) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type: "text/csv" }));
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+function parseCsv(text) {
+  const rows = [];
+  let row = [], cell = "", q = false;
+  text = text.replace(/^﻿/, "");
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) {
+      if (c === '"' && text[i + 1] === '"') { cell += '"'; i++; }
+      else if (c === '"') q = false;
+      else cell += c;
+    } else if (c === '"') q = true;
+    else if (c === ",") { row.push(cell); cell = ""; }
+    else if (c === "\n" || c === "\r") {
+      if (c === "\r" && text[i + 1] === "\n") i++;
+      row.push(cell); rows.push(row); row = []; cell = "";
+    } else cell += c;
+  }
+  if (cell || row.length) { row.push(cell); rows.push(row); }
+  return rows.filter(r => r.some(v => v.trim()));
+}
+
+$("exportEstimate").addEventListener("click", () => {
+  const { subtotal, tax, grand } = calc();
+  const rows = [["品目", "数量", "単位", "単価", "金額"]];
+  estimate.rows.filter(r => r.name || Number(r.price)).forEach(r =>
+    rows.push([r.name, r.qty, r.unit, r.price, (Number(r.qty) || 0) * (Number(r.price) || 0)]));
+  rows.push([], ["小計", "", "", "", subtotal], ["消費税", "", "", "", tax], ["合計", "", "", "", grand]);
+  download(`見積明細_${estimate.estNo || "無題"}.csv`, toCsv(rows));
+});
+
+// ---------- 品目表 ----------
+function renderItems() {
+  $("itemsTable").querySelector("tbody").innerHTML = items.map((it, i) => `
+    <tr data-i="${i}">
+      <td><input data-f="name" value="${esc(it.name)}"></td>
+      <td><input data-f="unit" value="${esc(it.unit)}"></td>
+      <td><input data-f="price" type="number" min="0" step="1" value="${esc(it.price)}" style="text-align:right"></td>
+      <td><button class="btn del" title="この品目を消す">×</button></td>
+    </tr>`).join("");
+}
+$("itemsTable").addEventListener("input", e => {
+  const tr = e.target.closest("tr");
+  const f = e.target.dataset.f;
+  if (!tr || !f) return;
+  items[tr.dataset.i][f] = f === "price" ? Number(e.target.value) || 0 : e.target.value;
+  save("mitsumori.items", items);
+});
+$("itemsTable").addEventListener("click", e => {
+  if (!e.target.classList.contains("del")) return;
+  items.splice(e.target.closest("tr").dataset.i, 1);
+  save("mitsumori.items", items);
+  renderItems();
+});
+$("addItem").addEventListener("click", () => {
+  items.push({ name: "", unit: "式", price: 0 });
+  save("mitsumori.items", items);
+  renderItems();
+  const inputs = $("itemsTable").querySelectorAll('[data-f="name"]');
+  inputs[inputs.length - 1].focus();
+});
+$("exportItems").addEventListener("click", () => {
+  download("品目表.csv", toCsv([["品目", "単位", "単価"], ...items.map(it => [it.name, it.unit, it.price])]));
+});
+$("importItems").addEventListener("change", e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    // Excelで保存したCSV（Shift_JIS）にも対応する
+    const buf = reader.result;
+    let text = new TextDecoder("utf-8").decode(buf);
+    if (text.includes("�")) text = new TextDecoder("shift_jis").decode(buf);
+    let rows = parseCsv(text);
+    if (rows.length && rows[0][0].trim() === "品目") rows = rows.slice(1);
+    const loaded = rows
+      .map(r => ({ name: (r[0] || "").trim(), unit: (r[1] || "").trim(), price: Number(String(r[2] || "").replace(/[,円¥\s]/g, "")) || 0 }))
+      .filter(it => it.name);
+    if (loaded.length === 0) {
+      flash("itemsMsg", "読み込める品目がありませんでした。列が「品目,単位,単価」の順になっているか確認してください。");
+    } else {
+      items = loaded;
+      save("mitsumori.items", items);
+      renderItems();
+      flash("itemsMsg", `${loaded.length}件の品目を読み込みました。`);
+    }
+    e.target.value = "";
+  };
+  reader.readAsArrayBuffer(file);
+});
+$("resetItems").addEventListener("click", () => {
+  if (!confirm("品目表をサンプルの内容に戻しますか？")) return;
+  items = SAMPLE_ITEMS.map(x => ({ ...x }));
+  save("mitsumori.items", items);
+  renderItems();
+  flash("itemsMsg", "サンプルに戻しました。");
+});
+
+// ---------- 設定 ----------
+const settingFields = ["coName", "coAddress", "coTel", "coPerson", "taxRate", "rounding"];
+settingFields.forEach(f => {
+  $(f).value = settings[f];
+  $(f).addEventListener("input", () => {
+    settings[f] = f === "taxRate" ? Number($(f).value) || 0 : $(f).value;
+    save("mitsumori.settings", settings);
+    flash("settingsMsg", "保存しました。");
+  });
+});
+
+renderEstimate();
+renderItems();
+</script>
+</body>
+</html>
